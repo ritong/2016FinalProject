@@ -18,7 +18,7 @@ library(ggplot2)
 library(broom)
 ```
 
-**This project is based on real complany data to analyze the relationships of Virtual Machine(VM) remote session usage with date time and geolocation of VM and remote clients. The company name remains anonymous in the project. Two data files: Remote session [available on GitHub here](https://github.com/ritong/2016FinalProject/blob/master/session.csv.gz) and [available on GitHub here](https://github.com/ritong/2016FinalProject/blob/master/region.csv). **
+**This project is based on real complany data to analyze the relationships of Virtual Machine(VM) remote session usage with date time and geolocation of VM and remote clients. The company name remains anonymous in the project. Two data files: Remote session [available on GitHub here](https://github.com/ritong/2016FinalProject/blob/master/session.csv.gz) and Region [available on GitHub here](https://github.com/ritong/2016FinalProject/blob/master/region.csv.gz). **
 
 # Project Background 
 The company sells and leases many its storage products to customers globally.  The audit agent installed on customer’s network allows secure transfer of the error and diagnostic information to be sent back to the Customer Support Center(remote session).   Engineers then analyze these error reports and trouble shoot for customers. 
