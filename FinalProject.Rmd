@@ -21,43 +21,45 @@ library(broom)
 **This project is based on real complany data to analyze the relationships of Virtual Machine(VM) remote session usage with date time and geolocation of VM and remote clients. The company name remains anonymous in the project. Two data files: Remote session [available on GitHub here](https://github.com/ritong/2016FinalProject/blob/master/session.csv.gz) and Region [available on GitHub here](https://github.com/ritong/2016FinalProject/blob/master/region.csv.gz). **
 
 # Project Background 
-The company sells and leases many its storage products to customers globally.  The audit agent installed on customer’s network allows secure transfer of the error and diagnostic information to be sent back to the Customer Support Center(remote session).   Engineers then analyze these error reports and trouble shoot for customers. 
+
+The company sells and leases its storage products to customers globally.  The audit agent installed on customer’s network allows secure transfer of the error and diagnostic information to be sent back to the Customer Support Center(remote session).   Engineers then analyze these error reports and trouble shoot for customers. 
  
 The company’s system has been tracking when, where(with IP address), how much and who data transfer comes from. However there is no data analytic tool to analyze these information. The project intends to use R to do statistical computing,  depict the remote session allocations  graphically, identity capacity shortages, over allocated VMs,  hotspot with different geo locations and date time. 
 
-With recent three month of remote session data(over one million rows), the goal is to find out whether there is a trend between the number of allocated VM sessions, session duration, data transfer has correlation with geolocation and date time.
+With recent three months of remote session data(over one million records) from 1/31/2016 to 4/30/2016, the goal is to find out whether there is a trend that the number of allocated VM sessions, session duration, data transfer has correlation with geolocation and date time.
 
 Check whether normal distribution is followed and whether linear model can be applied. Here are some key benefits:
  
-1. Investigate the remote session trends with geolocation and time
-2. Identify potential over allocated VMs from geo location and time in order to take preventive actions instead of firefighting measures.
-3. Use the model to predict the future VM capacity
+1. Investigate the remote session trends with geolocation and date time
+2. Identify potential over allocated VMs from geo location and date time in order to take preventive actions.
+3. Use the model to predict the future VM capacity.
 
-The backbone data comes from the company’s database, which tracks on the remote session’s start/end time, installed agent’s IP, the VM name located in different data center, how much has been transferred and the session termination cause. The data will be queried via SQL and extracted into CSV fommat(session.csv). Java program is used to call [IP lookup web servoce](http://ipinfo.io/yourIPAddress/json) and extra into CSV format(region.csv)
+The backbone data comes from the company’s database, which tracks remote sessions' start/end time, installed agent’s IP address, the VM name located in different data center, how much data has been transferred and the session termination cause. The data is queried via SQL and extracted into CSV fommat(session.csv). A Java program is developed to call [IP lookup web service](http://ipinfo.io/yourIPAddress/json) and extract the regional information into CSV format(region.csv)
 
 
 ## Data Overview
 
-First load the sessions from CSV file, which is extracted from production DB. 
+First load the session file(session.csv.gz), which is extracted from production DB and zipped. 
 
-There are over 1 million sessios in the past three months. Each row is correspond to each remote session initiated globally.
+There are over 1 million remote sessios in the past three months. Each row is correspond to each remote session initiated globally.
 
 Here is a decription of the columns:
 
 Session_ID: Unique identifier of each remote session
 
-Login: Account name to initiate remote session and access remote VM
+Login: Account name to initiate a remote session to access VM in the data center
 
-Start_Time: The timestamp when remote session starts
+Start_Time: The timestamp when a remote session starts
 
-End_Time: The timestamp when remote session ends
+End_Time: The timestamp when a remote session ends
 
-Agent_IP: IP address of the agent installed on product
+Agent_IP: IP address of the agent installed on the product
 
-Termination_Cause: a lookup value of differnt typese of terminate. Normally it is 3.
+Termination_Cause: a lookup value of differnt typese of terminate. A normal termination cause value is 3.
 
 Data_Transfer: the file transfer from the agent(client) to the VM(Server) in byte
-Gas_Server_Name: One of the fifteen VMs loccated in five data centers(Cork, Hopkinton, Durham, Santa Clara and Singapore). Each data center has three VMs. Three data centers are located in the US: Hopkinto, Durham and Santa Clara. One of them in Europe: Cork and one in Asia: Singapore. 
+
+Gas_Server_Name: One of the fifteen VMs loccated in five data centers(Cork in Europe, Hopkinton, Durham, Santa Clara in the US and Singapore in Asia). Each data center has three VMs. 
 
 Duration: The time span between Start_Time and End_Time in minutes
 
@@ -75,11 +77,14 @@ session <- read_csv(gzfile("~/Downloads/session.csv.gz"))
 login_info<-session %>% group_by(LOGIN) %>% 
   summarize(login_count=n()) 
 
+count(session)
+
 head(login_info[order(-login_info$login_count),], n=1 )
 
+(head(login_info[order(-login_info$login_count),], n=1 )$login_count)*100 / (count(session))
 ```
 
-The highest number of remote sessions was initated by a generic account: SYR.
+The highest number of remote sessions was initated by a generic account: SYR, which stands for 25% of the total login.
 
 Do data manipulation to separate the start time to year, month, day, hour, minute and second. 
 
@@ -97,7 +102,7 @@ p<-p%>% separate(STIME, into=c("SHOUR", "SMIN", "SSECOND"),sep=":")
 
 ```
 
-Each data center has three VMs named from 01 to 03. Add a DC column mapped from GAS_Server_Name column
+Each data center has three VMs named from 01 to 03. Add a DC column mapped from GAS_Server_Name column.
 
 ```{r}
 ## put your code here
@@ -108,7 +113,6 @@ p$DC <-DC[p$GAS_SERVER_NAME]
 ```
 
 ## Data Visualization
-
 
 Next the trend of between the number of remote sessions and the dayofyear from 1/31/2016 to 4/30/2016. Use point size to denote the average data transfer size in MB.
 
@@ -121,10 +125,10 @@ p %>% group_by(DAYOFYEAR) %>%
 xlab("Day of Year from 1/31/2016 to 4/30/2016")+ylab("The number of remote sessions") +labs(title="Remote sessions on all VMs")
 ```
 
-As a whole, the trend is gradually up when time goes by in the past three months.
-Interestingly, there is a steeper trend that more remote sessions are loaded over the weekend from 1/31/2016 to 4/30/2016. It appears that more and more people work over the weekend.
+As a whole, the trend is gradually up with day in the past three months.
+Interestingly, there is a trend that more and more remote sessions were initiated over the weekend from 1/31/2016 to 4/30/2016. It appears that more and more people work over the weekend.
 
-What is the trend during 24 hour cycle?
+Next check what the trend during 24 hour cycle is:
 
 ```{r}
 ## put your code here
@@ -135,25 +139,23 @@ p %>% group_by(SHOUR) %>%
 xlab("24 hour in EST")+ylab("The number of remote sessions") +labs(title="Remote sessions around the hour")
 ```
 
-It is concluded that during 24 hour cycle, more number of remote sessions are initiated in the morning of EST. More data transfer happens between 8 PM towards midnight EST.
+It is observed that during 24 hour cycle, more emote sessions were initiated in the morning of EST. More data transfers happened between 8 PM towards midnight EST.
 
 ## Data Analytic with geolocation of data centers
 
-Across the five data centers, which one has the most loading in number of remote sessions?
+As remote sessions accessed one of the five data centers, which data center took the most loading in number of remote sessions?
+
 ```{r}
 ## put your code here
 p %>% group_by(DC) %>% 
   summarize(login_count=n()) %>% 
-  #ggplot(aes(DC, login_count)) +
-  #geom_point()  
   ggplot(aes(DC, login_count, fill=DC)) +geom_bar(stat="identity")+
   geom_hline(aes( yintercept = mean(login_count)))+
 xlab("Data Centers")+ylab("The number of remote sessions") +labs(title="Remote sessions across Data Center")
 
-
 ```
 
-It turns out the data center in Cork takes the most remote sessions. Then what about the average duration considering normal termination(termination cause ==3) and average data transferred?
+It turns out the data center in Cork took most remote sessions. Then what about the average duration considering normal termination(termination cause ==3) and average data transferred across data centers?
 
 ```{r}
 ## put your code here
@@ -170,15 +172,14 @@ p %>% filter(!is.na(DATA_TRANSFER)) %>% group_by(DC) %>%
   geom_hline(aes( yintercept = mean(DATA_TRANSFER)))+
 xlab("Data Centers")+ylab("Average data transfer in MBs") +labs(title="Average data transfer across Data Center")
 
-
-
 ```
 
-It appears the durations are evenly distributed acorss the data center while Singapore data center receives the least data transfer. 
+It appears the durations were evenly distributed acorss data centers while Singapore data center received the least data transfer. 
 
-Let's concentrate on the number of remote session across VMs in all data centers.
+The next step is to concentrate on the number of remote session across VMs in all data centers.
 
 ```{r}
+## put your code here
 p %>% group_by(GAS_SERVER_NAME) %>% 
   summarize(login_count=n()) %>% 
   ggplot(aes(GAS_SERVER_NAME, login_count, fill=GAS_SERVER_NAME)) +geom_bar(stat="identity")+
@@ -190,22 +191,20 @@ p %>% group_by(DAYOFYEAR,DC) %>%
   ggplot(aes(x = DAYOFYEAR, y = login_count, color = DC)) + geom_line()+xlab("Day of Year from 1/31/2016 to 4/30/2016")+ylab("The number of remote sessions") +labs(title="The trend of remote sessions for data centers")
 ```
 
-The result is consistent with the previous observation: Cork VMs are taking the most loading of remote sessions.
+The result is consistent with the previous observation: Cork VMs were taking the most loading of remote sessions.
 
 ## Data Analytic with client geolocation
 
-Now consider the geolocation of the client, which is based on the installed agent's IP address. 
+Now consider the geolocation of the client, which is determined by installed agent's IP address. 
 
-First load region.csv, which is generated separately by a Java program calling IP lookup web serivce for each IP address.
+First load region.csv.gz, which is generated  by a Java program calling [IP lookup web service](http://ipinfo.io/yourIPAddress/json) for each IP address.
 
 Then left join session to region so that each row contains both client and server information.
 
 Look into the data based on the client country.
 
 ```{r}
-
-#region<-read_csv("/Users/chenr1/Documents/data_science/FinalProject/2016FinalProject/region.csv")
-
+## put your code here
 region <- read_csv(gzfile("~/Downloads/region.csv.gz"))
 
 p<-left_join(p, region, by=c("AGENT_IP"="IP"))
@@ -222,11 +221,10 @@ head(login_info[order(-login_info$login_count),], n=5 )
 
 ```
 
-Client remote sessions coming from the US are way ahead of other countries.
-Within the US, NY is the leader. Unknown region, coming next, means the IP address is internal or can not be determined.
-
+The number of remote sessions requesting from the US is way higher than that from other countries. Within the US, NY state ranks first. Unknown region, ranking in the second place, means the IP address is internal or can not be determined.
 
 ```{r}
+## put your code here
 p %>% group_by(Country) %>% 
   summarize(login_count=n())   %>% filter(login_count>10000) %>%
   mutate(Country=reorder(Country,login_count)) %>%
@@ -234,36 +232,38 @@ p %>% group_by(Country) %>%
 
 ```
 
-Based on the graph, the number of remote sessions coming from US is way ahead of other countries.
+Based on the graph, the number of remote sessions coming from US was way ahead of other countries.
 
-Based on the previous obvervation, the load on Cork data center was hit most. It appears a number of US remote sessions going to Cork Data Center even though there are three US data centers, which is inefficient.
+Based on the previous obvervation, the remote sessions to Cork data center were loaded most. It appears a number of US remote sessions routed to Cork Data Center even though there are three US data centers, which is inefficient.
 
 ```{r}
+## put your code here
 p %>% filter(DC=="Cork") %>%group_by(Country) %>% 
   summarize(login_count=n())   %>% filter(login_count>10000) %>%
   mutate(Country=reorder(Country,login_count)) %>%
   ggplot(aes(Country, login_count, fill=Country)) +geom_bar(stat="identity")+xlab("Countries with more than 10,000 remote sessions from 1/31/216 to 4/30/2016")+ylab("The number of remote sessions") +labs(title="Remote session distribution in Cork data center")
 ```
 
-The graph above confirms: the number of remote sessions coming from the US ranks second among european countries for Cork data center.
+The graph above confirms: the number of remote sessions requesting from the US ranked the second among european countries for Cork data center.
 
 Take another angle, of all the remote ressions coming from US, what about their distribution of the data centers?
 
 ```{r}
+## put your code here
 p %>% filter(Country=="US") %>%group_by(DC) %>% 
   summarize(login_count=n()) %>% 
   ggplot(aes(DC, login_count, fill=DC)) +geom_bar(stat="identity")+
   geom_hline(aes( yintercept = mean(login_count)))+xlab("Data Centers")+ylab("The number of remote sessions") +labs(title="Data center distribution of the remote sessions coming from the US")
 ```
 
-Obviously the US data center in Santa Clara is not fully used while a number of US remote sessions are sent to Cork data center. Connection delay is expected. Based on the business knowlege, the agent uses its configured timezone to decide which data center to access. It appears some the configuration are wrong.
+Obviously the US data center in Santa Clara is not fully used while a number of US remote sessions are sent to Cork data center. Connection delay is expected. Based on the business knowlege, the agent uses its configured timezone to decide which data center to access. It appears some configurations are wrong.
 
 ## Data Analytic with strata
 
 Split the dta into groups by data center considering the number of remote sessions, duration and data transfer.
 
 ```{r}
-
+## put your code here
 theme_set(theme_bw())
 
 DataCenter<-c("Cork", "Hopkinton", "Durham","Santa Clara","Singapore")
@@ -276,8 +276,7 @@ ggplot(aes(x = DAYOFYEAR, y = login_count, size=DATA_TRANSFER)) +
   geom_smooth(method = "lm") +
   facet_wrap(~DC, scales = "free")+xlab("Day of Year from 1/31/2016 to 4/30/2016")+ylab("Average number of remote sessions") +labs(title="Remote session trend across Data Centers")
 
-
-#Duration scross Data center
+#Duration across Data center
 p %>% filter(TERMINATION_CAUSE==3) %>%
   group_by(DAYOFYEAR, DC) %>% 
  summarize(DURATION=mean(DURATION)) %>%
@@ -288,7 +287,7 @@ ggplot(aes(x = DAYOFYEAR, y = DURATION)) +
   facet_wrap(~DC, scales = "free")+xlab("Day of Year from 1/31/2016 to 4/30/2016")+ylab("Duration of remote session in minutes") +labs(title="Duration of remote session on each Data Center")
 
 
-#Data Transfer scross Data Center
+#Data Transfer across Data Center
 p %>%
   group_by(DAYOFYEAR, DC) %>% 
  summarize(DATA_TRANSFER=mean(DATA_TRANSFER)/1000000) %>%
@@ -308,10 +307,10 @@ ggplot(aes(x = DAYOFYEAR, y = login_count)) +
   geom_smooth(method = "lm") +
   facet_wrap(~DC, scales = "free")+xlab("Day of Year from 1/31/2016 to 4/30/2016")+ylab("Number of remote sessions") +labs(title="Remote login coming from US across Data center")
 
-#Each data center has three VMs for the remote sessions
+#Each data center has three VMs 
 VM <-c("esrgckprd01","esrgckprd02","esrgckprd03","esrghoprd01","esrghoprd02","esrghoprd03","esrgweprd01","esrgweprd02","esrgweprd03","esrgscprd01","esrgscprd02","esrgscprd03","esrgspprd01","esrgspprd02","esrgspprd03")
 
-# check remote sessions cross each VM
+# check remote sessions across each VM
 p %>% group_by(DAYOFYEAR, GAS_SERVER_NAME) %>% 
  summarize(login_count=n()) %>%
   filter(GAS_SERVER_NAME %in% VM) %>%
@@ -322,15 +321,15 @@ ggplot(aes(x = DAYOFYEAR, y = login_count)) +
 
 ```
 
-The number of remote sessions increases consistently in the US data centers(Durham, Hopkinton and Santa Clara) and Singapore with data/time. The data center in Santa Clara and Sigapore are not fully used.
+The number of remote sessions increased consistently in the US data centers(Durham, Hopkinton and Santa Clara) and Singapore with data/time. The data center in Santa Clara and Sigapore were not fully used.
 
 Duration of remote sessions in each data center reduces with data/time.
 
-The remote sessions coming from the US is routed to Santa Clara in a faster pace than any other data center.
+The remote sessions coming from the US  were routed to Santa Clara in a faster pace than any other data center.
 
 ## Data Analytic with linear model and regression
 
-Check whether the number of remote session, average Data Transfer and session duration is in normal distribution on any one of the DC. Pick Durham for example.
+Check whether the number of remote session is in normal distribution.
 
 ```{r}
 ## put your code here
@@ -355,11 +354,30 @@ qqline(x$login_count)
 
 The Normal Q-Q plot shows the bulk number of remote sessions with day of year does not fit a good normal distribultion(big tails!).
 
-From the previous observation, the remote session count over the weekend is way below that of weekday. Also the remote session count from the US is way higher than other contries. Then let's see whether the number is in normal distribution if we filter out these two variables.
+From the previous observation, the remote session count over the weekend is way below that of weekday. Also the remote session count from the US is way higher than other contries. Check whether remote sessions are in normal distribution if these two variables are filtered.
 
 ```{r}
 x<-p %>%
   filter(Country=="US"&(WEEKDAY!="SAT" & WEEKDAY !='SUN')) %>%
+  group_by(DAYOFYEAR) %>% 
+ summarize(login_count=n())
+
+fit<-x %>% lm(login_count ~ DAYOFYEAR, data = .) 
+
+hist(x$login_count)
+
+x %>%
+  ggplot(aes(DAYOFYEAR, login_count)) + 
+  geom_point() +
+  geom_abline(intercept = fit$coef[1],
+              slope = fit$coef[2])+xlab("Day of Year from 1/31/2016 to 4/30/2016 except weekends")+ylab("Average number of remote sessions from US")
+
+sd(x$login_count)
+qqnorm(x$login_count)
+qqline(x$login_count)
+
+x<-p %>%
+  filter(Country=="US"&(WEEKDAY!="SAT" & WEEKDAY !='SUN')&(DC=="Hopkinton"|DC=="Durham"|DC=="Santa Clara")) %>%
   group_by(DAYOFYEAR) %>% 
  summarize(login_count=n())
 
@@ -400,17 +418,19 @@ qqline(x$login_count)
 
 ```
 
-The regression line shows the number of remote session from the US increases but the number of from non-US countries decreases. Q-Q plots confirms that the linear models fits the data well.
+The regression line shows the number of remote session from the US increases but the number of from non-US countries decreases. 
+
+Once filter the remote session with proper geolation, normal Q-Q plots confirms that the linear models fits the data well so that the trend is correctly predicted.
 
 
 ## Conclusions
 
-1. The bulk data is not in perfect normal distribution. However if the remote session s filtered by the source(Country) and remove weekend data(because the remote session count is much lower than weekdays), the filtered data is in normal distribution and confirmed by Mormal Q-Q plot.
+1. The whole data set is not in perfect normal distribution. However once the remote session is filtered by the source(Country) and from weekend data(because the remote session count is much lower than weekdays), the filtered data is in normal distribution and confirmed by Normal Q-Q plot.
 
-2. Santa Clara and Singapore data center's VM are relatively lightly used by the remote sessions while Cork's data center is loaded heavily. Santa Clara and Singapore data centers should be used effectively.
+2. Cork's data center is overloaded compared to other data centers.  Santa Clara and Singapore data centers are under load in terms of remote sessions. 
 
-3. A number of agents, because their timezone are not configured correctly, are routing to the data centers far away from their geolication. For example, a number of remote sesions coming from the US is routed to Cork, even to Singapore, even though the data center in Santa Clara has enough capacity.
+3. A number of agents, because their timezone settings are not configured correctly, are routing to the data centers far away from their geolication. For example, a number of remote sesions coming from the US is routed to Cork or Singapore, even though the data center in Santa Clara has enough capacity.
 
-4. The general trend of the number of remote sessions rise gradually with dates. The number of remote sessions rises dramatically over the weened although it is much lower than weekdays. The duration of remote session to each data center reduces consistently.
+4. The general trend of the number of remote sessions rises gradually with date time. The number of remote sessions rises dramatically over the weened although it is much lower than weekdays. The duration of remote session to each data center reduces consistently.
 
 5. The number of remote sessions coming from the US is way ahead of that of other countries. While the number of remote session from the US increases, the number of from non-US countries decreases. 
